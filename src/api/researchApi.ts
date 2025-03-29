@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Default to localhost if environment variable not set
-const API_URL = "/api/v1";
+const API_URL = "https://insightai-backend-urvq.onrender.com/api/v1";
 
 // Basic Research Interfaces
 export interface ResearchRequest {
