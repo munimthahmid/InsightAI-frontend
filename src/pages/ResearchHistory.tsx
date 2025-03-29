@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -17,7 +17,6 @@ import {
   Flex,
   Checkbox,
   HStack,
-  Spacer,
   useToast,
   AlertDialog,
   AlertDialogBody,
@@ -39,6 +38,7 @@ const ResearchHistory = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const navigate = useNavigate();
+  const cancelRef = useRef<HTMLButtonElement>(null);
   
   useEffect(() => {
     fetchHistory();
@@ -207,7 +207,7 @@ const ResearchHistory = () => {
                           <HStack spacing={2}>
                             {Object.entries(item.metadata.sources).map(([source, count]) => (
                               <Badge key={source} colorScheme="blue">
-                                {source}: {count}
+                                {source}: {count as React.ReactNode}
                               </Badge>
                             ))}
                           </HStack>
@@ -256,7 +256,7 @@ const ResearchHistory = () => {
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         isOpen={isOpen}
-        leastDestructiveRef={undefined}
+        leastDestructiveRef={cancelRef}
         onClose={onClose}
       >
         <AlertDialogOverlay>
@@ -270,7 +270,7 @@ const ResearchHistory = () => {
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button onClick={onClose}>
+              <Button ref={cancelRef} onClick={onClose}>
                 Cancel
               </Button>
               <Button colorScheme="red" onClick={handleDeleteConfirm} ml={3}>

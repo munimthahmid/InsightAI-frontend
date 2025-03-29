@@ -17,11 +17,6 @@ import {
   FormControl,
   FormLabel,
   Select,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -31,17 +26,22 @@ import {
   ModalCloseButton,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaSearch, FaFileAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaSearch } from 'react-icons/fa';
 import { 
   getTemplates, 
   researchWithTemplate,
   TemplateResponse
 } from '../api/researchApi';
 
+// Update the interface to include focus_areas
+interface ExtendedTemplateResponse extends TemplateResponse {
+  focus_areas: string[];
+}
+
 const Templates = () => {
-  const [templates, setTemplates] = useState<TemplateResponse[]>([]);
-  const [filteredTemplates, setFilteredTemplates] = useState<TemplateResponse[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateResponse | null>(null);
+  const [templates, setTemplates] = useState<ExtendedTemplateResponse[]>([]);
+  const [filteredTemplates, setFilteredTemplates] = useState<ExtendedTemplateResponse[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ExtendedTemplateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [researchLoading, setResearchLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -65,7 +65,8 @@ const Templates = () => {
     try {
       setLoading(true);
       const response = await getTemplates();
-      setTemplates(response.templates);
+      // Cast the templates to ExtendedTemplateResponse type
+      setTemplates(response.templates as ExtendedTemplateResponse[]);
       
       // Extract unique domains for filter
       const uniqueDomains = [...new Set(response.templates.map(t => t.domain))];
@@ -94,7 +95,7 @@ const Templates = () => {
     setFilteredTemplates(filtered);
   };
   
-  const handleTemplateClick = (template: TemplateResponse) => {
+  const handleTemplateClick = (template: ExtendedTemplateResponse) => {
     setSelectedTemplate(template);
     onOpen();
   };

@@ -29,12 +29,11 @@ import {
   AccordionButton,
   AccordionPanel,
   AccordionIcon,
-  Flex,
   Link,
   Tooltip,
 } from '@chakra-ui/react';
-import { FaArrowLeft, FaTrash, FaFileAlt } from 'react-icons/fa';
-import { getResearchById, deleteResearchById, ResearchResponse, generateLiteratureReview } from '../api/researchApi';
+import { FaArrowLeft, FaTrash } from 'react-icons/fa';
+import { getResearchById, deleteResearchById, ResearchResponse } from '../api/researchApi';
 import ReactMarkdown from 'react-markdown';
 
 const ResearchDetail = () => {
@@ -45,7 +44,6 @@ const ResearchDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingResearch, setDeletingResearch] = useState(false);
-  const [generatingLiteratureReview, setGeneratingLiteratureReview] = useState(false);
   
   useEffect(() => {
     if (!id) return;
@@ -89,26 +87,6 @@ const ResearchDetail = () => {
       });
     } finally {
       setDeletingResearch(false);
-    }
-  };
-  
-  const handleGenerateLiteratureReview = async () => {
-    if (!id) return;
-    
-    setGeneratingLiteratureReview(true);
-    try {
-      // Navigate to literature review page with this research
-      navigate(`/literature-review/${id}`);
-    } catch (err) {
-      setGeneratingLiteratureReview(false);
-      console.error('Error generating literature review:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to generate literature review',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
   
@@ -259,16 +237,6 @@ const ResearchDetail = () => {
                 </Stat>
               )}
             </SimpleGrid>
-            
-            <Flex justify="flex-end">
-              <Button
-                leftIcon={<FaFileAlt />}
-                colorScheme="green"
-                onClick={handleGenerateLiteratureReview}
-              >
-                Generate Literature Review
-              </Button>
-            </Flex>
             
             <Divider my={4} />
             

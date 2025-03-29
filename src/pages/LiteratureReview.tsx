@@ -126,13 +126,10 @@ const LiteratureReview = () => {
     const file = new Blob([literatureReview.literature_review], { type: 'text/markdown' });
     element.href = URL.createObjectURL(file);
     
-    // Create a safe filename based on the query
-    const safeFilename = literatureReview.query
-      .replace(/[^a-z0-9]/gi, '_')
-      .toLowerCase()
-      .substring(0, 50);
+    // Create a safe filename using research ID
+    const safeFilename = `literature_review_${literatureReview.research_id}`;
       
-    element.download = `literature_review_${safeFilename}.md`;
+    element.download = safeFilename + '.md';
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
