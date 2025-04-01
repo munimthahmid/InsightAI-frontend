@@ -134,6 +134,15 @@ const ResearchHistory = () => {
       timeStyle: 'short' 
     }).format(date);
   };
+
+  // Format timestamp for display
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return new Intl.DateTimeFormat('en-US', { 
+      dateStyle: 'medium', 
+      timeStyle: 'short' 
+    }).format(date);
+  };
   
   return (
     <Container maxW="container.xl">
@@ -200,18 +209,31 @@ const ResearchHistory = () => {
                           onChange={() => handleCheckboxChange(item.research_id)}
                         />
                       </Td>
-                      <Td>{item.query}</Td>
-                      <Td>{formatDate(item.saved_at)}</Td>
                       <Td>
-                        {item.metadata?.sources && (
-                          <HStack spacing={2}>
-                            {Object.entries(item.metadata.sources).map(([source, count]) => (
-                              <Badge key={source} colorScheme="blue">
-                                {source}: {count as React.ReactNode}
-                              </Badge>
-                            ))}
-                          </HStack>
+                        <Text fontWeight="medium">{item.query}</Text>
+                        {item.template_id && (
+                          <Badge colorScheme="blue" mt={1}>Template</Badge>
                         )}
+                      </Td>
+                      <Td>
+                        {item.timestamp 
+                          ? formatTimestamp(item.timestamp)
+                          : item.saved_at
+                            ? formatDate(item.saved_at)
+                            : 'Unknown'
+                        }
+                      </Td>
+                      <Td>
+                        <Flex flexWrap="wrap" gap={1}>
+                          {item.sources_used?.map((source, idx) => (
+                            <Badge key={idx} colorScheme="green">{source}</Badge>
+                          ))}
+                          {!item.sources_used && item.metadata?.sources && 
+                            Object.keys(item.metadata.sources).map((source, idx) => (
+                              <Badge key={idx} colorScheme="green">{source}</Badge>
+                            ))
+                          }
+                        </Flex>
                       </Td>
                       <Td>
                         <HStack spacing={2}>

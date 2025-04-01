@@ -31,9 +31,10 @@ import {
   AccordionIcon,
   Link,
   Tooltip,
+  Flex,
 } from '@chakra-ui/react';
-import { FaArrowLeft, FaTrash } from 'react-icons/fa';
-import { getResearchById, deleteResearchById, ResearchResponse } from '../api/researchApi';
+import { FaArrowLeft, FaTrash, FaBookOpen, FaSearch } from 'react-icons/fa';
+import { getResearchById, deleteResearchById, ResearchResponse, generateLiteratureReview, generateFocusedReport } from '../api/researchApi';
 import ReactMarkdown from 'react-markdown';
 
 const ResearchDetail = () => {
@@ -89,14 +90,139 @@ const ResearchDetail = () => {
       setDeletingResearch(false);
     }
   };
+
+  const handleGenerateLiteratureReview = () => {
+    if (!id) return;
+    navigate(`/literature-review/${id}`);
+  };
+
+  const handleGenerateFocusedReport = () => {
+    if (!id) return;
+    navigate(`/focused-report/${id}`);
+  };
   
+  const getSourceColor = (sourceType: string): string => {
+    const colorMap: Record<string, string> = {
+      'arxiv': 'teal',
+      'web': 'blue',
+      'news': 'purple',
+      'semantic_scholar': 'red',
+      'github': 'green',
+      'wikipedia': 'orange',
+      'research': 'pink'
+    };
+    
+    return colorMap[sourceType] || 'gray';
+  };
+
+  const renderReferencesSection = (content: string) => {
+    const lines = content.split('\n\n').filter(line => line.trim());
+    
+    return (
+      <VStack align="start" spacing={2} width="100%">
+        {lines.map((line, index) => {
+          // Extract citation key and content
+          const keyMatch = line.match(/^\[(.*?)\]/);
+          if (!keyMatch) return <Text key={index}>{line}</Text>;
+          
+          const key = keyMatch[0];
+          const restContent = line.substring(key.length).trim();
+          
+          // Extract source type from key [source-number]
+          const sourceMatch = key.match(/\[(.*?)-\d+\]/);
+          const sourceType = sourceMatch ? sourceMatch[1] : 'unknown';
+          const sourceColor = getSourceColor(sourceType);
+          
+          // Check for URL links in markdown format - more flexible regex
+          // This handles [url](url) format or plain URLs
+          const urlRegex = /\[(https?:\/\/[^\s\]]+)\]\((https?:\/\/[^\s\)]+)\)/;
+          const plainUrlRegex = /(https?:\/\/[^\s\)]+)/;
+          
+          const urlMatch = restContent.match(urlRegex);
+          const plainUrlMatch = !urlMatch ? restContent.match(plainUrlRegex) : null;
+          
+          // Get the URL from either regex match
+          const url = urlMatch ? urlMatch[2] : (plainUrlMatch ? plainUrlMatch[1] : null);
+          
+          return (
+            <Box 
+              key={index} 
+              width="100%" 
+              p={3} 
+              mb={2}
+              borderLeftWidth="4px" 
+              borderLeftColor={`${sourceColor}.400`}
+              borderRadius="md"
+              bg={`${sourceColor}.50`}
+              boxShadow="sm"
+            >
+              <Flex alignItems="center" mb={1}>
+                <Text as="span" fontWeight="bold" mr={2}>{key}</Text>
+                <Badge colorScheme={sourceColor}>{sourceType}</Badge>
+              </Flex>
+              
+              <Text>
+                {url ? (
+                  <>
+                    {/* Extract the text before the URL using the appropriate match pattern */}
+                    {urlMatch 
+                      ? restContent.substring(0, urlMatch.index || 0)
+                      : (plainUrlMatch 
+                          ? restContent.substring(0, plainUrlMatch.index || 0) 
+                          : restContent)
+                    }
+                    <Link href={url} isExternal color={`${sourceColor}.600`} fontWeight="medium">
+                      Visit Source
+                    </Link>
+                    {/* Extract the text after the URL using the appropriate match pattern */}
+                    {urlMatch 
+                      ? restContent.substring((urlMatch.index || 0) + urlMatch[0].length)
+                      : (plainUrlMatch 
+                          ? restContent.substring((plainUrlMatch.index || 0) + plainUrlMatch[0].length)
+                          : '')
+                    }
+                  </>
+                ) : restContent}
+              </Text>
+            </Box>
+          );
+        })}
+      </VStack>
+    );
+  };
+
   const renderFormattedMarkdown = (markdown: string) => {
     // Process the markdown content to add tooltips for citations
     if (!research?.citations) {
       return <ReactMarkdown>{markdown}</ReactMarkdown>;
     }
     
-    // Replace citation links with tooltips
+    // Split the markdown to handle References section separately
+    // This regex captures the entire references section including heading
+    const referencesSectionRegex = /\n## References\n([\s\S]*?)(\n## |$)/;
+    const referencesMatch = markdown.match(referencesSectionRegex);
+    
+    let mainContent = markdown;
+    let referencesContent = null;
+    
+    if (referencesMatch) {
+      // Exclude references section from main content
+      const fullMatch = referencesMatch[0];
+      const matchIndex = markdown.indexOf(fullMatch);
+      mainContent = markdown.substring(0, matchIndex);
+      
+      // Extract the References content (without the heading)
+      referencesContent = referencesMatch[1];
+      
+      // Check for duplicated References sections (might happen with reports enhanced by the backend)
+      const remainingContent = markdown.substring(matchIndex + fullMatch.length);
+      const secondRefMatch = remainingContent.match(/\n## References\n/);
+      if (secondRefMatch) {
+        console.log("Detected duplicate References section - showing only the first one");
+      }
+    }
+    
+    // Replace citation links with tooltips in main content
     const citationPattern = /\[(.*?)\]\(([^)]+)\)/g;
     const parts: JSX.Element[] = [];
     let lastIndex = 0;
@@ -106,7 +232,7 @@ const ResearchDetail = () => {
     const regex = new RegExp(citationPattern);
     
     // Iterate through all citation matches
-    while ((match = regex.exec(markdown)) !== null) {
+    while ((match = regex.exec(mainContent)) !== null) {
       const [fullMatch, text, chunkId] = match;
       const startIndex = match.index;
       
@@ -114,7 +240,7 @@ const ResearchDetail = () => {
       if (startIndex > lastIndex) {
         parts.push(
           <ReactMarkdown key={`text-${lastIndex}`}>
-            {markdown.substring(lastIndex, startIndex)}
+            {mainContent.substring(lastIndex, startIndex)}
           </ReactMarkdown>
         );
       }
@@ -148,15 +274,37 @@ const ResearchDetail = () => {
     }
     
     // Add the remaining text
-    if (lastIndex < markdown.length) {
+    if (lastIndex < mainContent.length) {
       parts.push(
         <ReactMarkdown key={`text-${lastIndex}`}>
-          {markdown.substring(lastIndex)}
+          {mainContent.substring(lastIndex)}
         </ReactMarkdown>
       );
     }
     
-    return <>{parts}</>;
+    // Return main content and references section separately
+    return (
+      <>
+        {parts}
+        {referencesContent && (
+          <>
+            <Heading as="h2" size="lg" mt={6} mb={2}>References</Heading>
+            <Box borderWidth="1px" borderRadius="lg" p={4} bg="gray.50">
+              {renderReferencesSection(referencesContent)}
+            </Box>
+          </>
+        )}
+      </>
+    );
+  };
+
+  // Format date for display
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return new Intl.DateTimeFormat('en-US', { 
+      dateStyle: 'medium', 
+      timeStyle: 'short' 
+    }).format(date);
   };
   
   return (
@@ -198,184 +346,112 @@ const ResearchDetail = () => {
             <Heading as="h1" size="xl">
               {research.query}
             </Heading>
+
+            <Flex justifyContent="flex-end" gap={3}>
+              <Button 
+                leftIcon={<FaBookOpen />}
+                colorScheme="blue"
+                onClick={handleGenerateLiteratureReview}
+                size="sm"
+              >
+                Generate Literature Review
+              </Button>
+              <Button 
+                leftIcon={<FaSearch />}
+                colorScheme="green"
+                onClick={handleGenerateFocusedReport}
+                size="sm"
+              >
+                Generate Focused Report
+              </Button>
+            </Flex>
             
-            <HStack>
-              {research.metadata?.template && (
-                <>
-                  <Badge colorScheme="blue">
-                    {research.metadata.template.name}
-                  </Badge>
-                  <Badge colorScheme="green">
-                    {research.metadata.template.domain}
-                  </Badge>
-                </>
-              )}
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <Stat>
+                <StatLabel>Sources</StatLabel>
+                <StatNumber>{research.sources_used?.length || 0}</StatNumber>
+                <StatHelpText>
+                  {research.sources_used?.map(source => (
+                    <Badge key={source} mr={1}>{source}</Badge>
+                  ))}
+                </StatHelpText>
+              </Stat>
               
-              {research.research_id && (
-                <Text fontSize="sm" color="gray.500">
-                  ID: {research.research_id}
-                </Text>
-              )}
-            </HStack>
-            
-            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-              {Object.entries(research.sources).map(([source, count]) => (
-                <Stat key={source} bg="gray.50" p={3} borderRadius="md" _dark={{ bg: 'gray.700' }}>
-                  <StatLabel>{source.charAt(0).toUpperCase() + source.slice(1)}</StatLabel>
-                  <StatNumber fontSize="2xl">{count}</StatNumber>
-                  <StatHelpText>Sources</StatHelpText>
-                </Stat>
-              ))}
+              <Stat>
+                <StatLabel>Results</StatLabel>
+                <StatNumber>{research.result_count}</StatNumber>
+                <StatHelpText>Documents processed</StatHelpText>
+              </Stat>
               
-              {research.metadata?.processing_time?.total_time && (
-                <Stat bg="gray.50" p={3} borderRadius="md" _dark={{ bg: 'gray.700' }}>
-                  <StatLabel>Processing Time</StatLabel>
-                  <StatNumber>
-                    {research.metadata.processing_time.total_time.toFixed(2)}s
-                  </StatNumber>
-                  <StatHelpText>Total Processing Time</StatHelpText>
-                </Stat>
-              )}
+              <Stat>
+                <StatLabel>Date</StatLabel>
+                <StatNumber>{research.timestamp ? formatDate(research.timestamp) : 'Unknown'}</StatNumber>
+                <StatHelpText>
+                  {research.template_id && <Badge colorScheme="blue">Template Used</Badge>}
+                </StatHelpText>
+              </Stat>
             </SimpleGrid>
             
-            <Divider my={4} />
-            
-            <Tabs colorScheme="brand" isFitted variant="enclosed">
+            <Tabs variant="enclosed">
               <TabList>
-                <Tab>Research Report</Tab>
-                <Tab>Citations & Evidence</Tab>
-                <Tab>Metadata</Tab>
-                {research.contradictions && Object.keys(research.contradictions).length > 0 && (
-                  <Tab>Contradictions</Tab>
+                <Tab>Report</Tab>
+                <Tab>Sources</Tab>
+                {research.citations && Object.keys(research.citations).length > 0 && (
+                  <Tab>Citations</Tab>
                 )}
               </TabList>
               
               <TabPanels>
                 <TabPanel>
-                  <Box 
-                    bg="gray.50" 
-                    p={8} 
-                    borderRadius="md"
-                    boxShadow="md"
-                    overflowX="auto" 
-                    _dark={{ bg: 'gray.700' }}
-                    className="markdown-content"
-                  >
+                  <Box className="research-report">
                     {renderFormattedMarkdown(research.report)}
                   </Box>
                 </TabPanel>
                 
                 <TabPanel>
-                  {research.citations && Object.keys(research.citations).length > 0 ? (
-                    <Accordion allowMultiple>
-                      {Object.entries(research.citations).map(([chunkId, citation]) => (
-                        <AccordionItem key={chunkId} id={`citation-${chunkId}`}>
-                          <h2>
-                            <AccordionButton>
-                              <Box flex="1" textAlign="left">
-                                <Text fontWeight="bold">{citation.title}</Text>
-                                <Text fontSize="sm" color="gray.500">
-                                  {citation.source_type.toUpperCase()} citation
-                                </Text>
-                              </Box>
-                              <AccordionIcon />
-                            </AccordionButton>
-                          </h2>
-                          <AccordionPanel pb={4} bg="gray.50" _dark={{ bg: 'gray.600' }}>
-                            <VStack align="stretch" spacing={3}>
-                              {citation.url && (
-                                <Link href={citation.url} color="blue.500" isExternal>
-                                  View Source
-                                </Link>
-                              )}
-                              <Box>
-                                <Text fontWeight="bold">Evidence:</Text>
-                                <Text mt={1}>{citation.text}</Text>
-                              </Box>
-                              {Object.entries(citation.additional_info).length > 0 && (
-                                <Box>
-                                  <Text fontWeight="bold">Additional Information:</Text>
-                                  <SimpleGrid columns={2} spacing={2} mt={1}>
-                                    {Object.entries(citation.additional_info).map(([key, value]) => (
-                                      <Text key={key}>
-                                        <strong>{key}:</strong> {value}
-                                      </Text>
-                                    ))}
-                                  </SimpleGrid>
-                                </Box>
-                              )}
-                            </VStack>
-                          </AccordionPanel>
-                        </AccordionItem>
+                  <Box>
+                    <Heading as="h3" size="md" mb={4}>Sources Used</Heading>
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                      {research.sources_used?.map((source, index) => (
+                        <Box 
+                          key={index}
+                          p={4}
+                          borderWidth="1px"
+                          borderRadius="md"
+                        >
+                          <Badge mb={2}>{source}</Badge>
+                          <Text fontWeight="bold">{source} Sources</Text>
+                        </Box>
                       ))}
-                    </Accordion>
-                  ) : (
-                    <Box p={4} bg="gray.50" borderRadius="md" _dark={{ bg: 'gray.700' }}>
-                      <Text>No citation data available for this research.</Text>
-                    </Box>
-                  )}
-                </TabPanel>
-                
-                <TabPanel>
-                  <Box bg="gray.50" p={6} borderRadius="md" _dark={{ bg: 'gray.700' }}>
-                    <Heading size="md" mb={4}>Metadata</Heading>
-                    <VStack align="stretch" spacing={4}>
-                      <Box>
-                        <Text fontWeight="bold">Research ID:</Text>
-                        <Text>{research.research_id || id}</Text>
-                      </Box>
-                      
-                      {research.metadata?.processing_time && (
-                        <Box>
-                          <Text fontWeight="bold">Processing Times:</Text>
-                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={2}>
-                            <Text>Data Fetch: {research.metadata.processing_time.fetch_time}s</Text>
-                            <Text>Vector Processing: {research.metadata.processing_time.process_time}s</Text>
-                            <Text>Query Time: {research.metadata.processing_time.query_time}s</Text>
-                            <Text>Report Generation: {research.metadata.processing_time.report_time}s</Text>
-                          </SimpleGrid>
-                        </Box>
-                      )}
-                      
-                      {research.metadata?.template && (
-                        <Box>
-                          <Text fontWeight="bold">Template Used:</Text>
-                          <Text>{research.metadata.template.name} ({research.metadata.template.domain})</Text>
-                        </Box>
-                      )}
-                    </VStack>
+                    </SimpleGrid>
                   </Box>
                 </TabPanel>
                 
-                {research.contradictions && Object.keys(research.contradictions).length > 0 && (
+                {research.citations && (
                   <TabPanel>
-                    <Box bg="gray.50" p={6} borderRadius="md" _dark={{ bg: 'gray.700' }}>
-                      <Heading size="md" mb={4}>Contradictions Found</Heading>
-                      <VStack align="stretch" spacing={4}>
-                        {Object.entries(research.contradictions).map(([topic, views]) => (
-                          <Box key={topic} p={4} borderWidth="1px" borderRadius="md">
-                            <Heading size="sm" mb={2}>{topic}</Heading>
-                            <VStack align="stretch" spacing={2}>
-                              {views.map((view, index) => (
-                                <Box 
-                                  key={index} 
-                                  p={3} 
-                                  bg={index % 2 === 0 ? "blue.50" : "red.50"} 
-                                  borderRadius="md"
-                                  _dark={{
-                                    bg: index % 2 === 0 ? "blue.900" : "red.900",
-                                  }}
-                                >
-                                  <Text>{view.statement}</Text>
-                                  <Text fontSize="sm" mt={1}>
-                                    Source: {view.source_type} - {view.source_title}
-                                  </Text>
-                                </Box>
-                              ))}
-                            </VStack>
-                          </Box>
+                    <Box>
+                      <Heading as="h3" size="md" mb={4}>Citations</Heading>
+                      <Accordion allowMultiple>
+                        {Object.entries(research.citations).map(([id, citation]) => (
+                          <AccordionItem key={id} id={`citation-${id}`}>
+                            <AccordionButton>
+                              <Box flex="1" textAlign="left">
+                                <Text fontWeight="bold">{citation.title}</Text>
+                                <Badge mr={2}>{citation.source_type}</Badge>
+                              </Box>
+                              <AccordionIcon />
+                            </AccordionButton>
+                            <AccordionPanel pb={4}>
+                              <Text mb={2}>{citation.text}</Text>
+                              {citation.url && (
+                                <Link href={citation.url} isExternal color="blue.500">
+                                  Source Link
+                                </Link>
+                              )}
+                            </AccordionPanel>
+                          </AccordionItem>
                         ))}
-                      </VStack>
+                      </Accordion>
                     </Box>
                   </TabPanel>
                 )}
