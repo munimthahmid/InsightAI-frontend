@@ -98,7 +98,7 @@ const LiteratureReview = () => {
   const handleCopyToClipboard = () => {
     if (!literatureReview) return;
     
-    navigator.clipboard.writeText(literatureReview.literature_review)
+    navigator.clipboard.writeText(literatureReview.report)
       .then(() => {
         toast({
           title: 'Copied',
@@ -123,7 +123,7 @@ const LiteratureReview = () => {
     if (!literatureReview) return;
     
     const element = document.createElement('a');
-    const file = new Blob([literatureReview.literature_review], { type: 'text/markdown' });
+    const file = new Blob([literatureReview.report], { type: 'text/markdown' });
     element.href = URL.createObjectURL(file);
     
     // Create a safe filename using research ID
@@ -243,7 +243,7 @@ const LiteratureReview = () => {
                 
                 <Flex justify="space-between" align="center">
                   <Heading size="md">
-                    Literature Review ({literatureReview.format.citation_style} format)
+                    Literature Review ({literatureReview.format_type} format)
                   </Heading>
                   
                   <HStack spacing={2}>
@@ -273,7 +273,7 @@ const LiteratureReview = () => {
                   className="markdown-content" 
                   overflowX="auto"
                 >
-                  <ReactMarkdown>{literatureReview.literature_review}</ReactMarkdown>
+                  <ReactMarkdown>{literatureReview.report}</ReactMarkdown>
                 </Box>
               </>
             )}

@@ -26,6 +26,10 @@ export interface ResearchResponse {
   query: string;
   report: string;
   research_id: string;
+  sources_used?: string[];
+  result_count?: number;
+  timestamp?: number;
+  template_id?: string;
   metadata?: {
     processing_time?: {
       fetch_time: number;
@@ -101,6 +105,9 @@ export interface TemplateResponse {
   created_by?: string;
   is_default: boolean;
   tags: string[];
+  domain?: string;
+  template_id?: string;
+  focus_areas?: string[];
 }
 
 export interface TemplateListResponse {
@@ -132,7 +139,11 @@ export interface LiteratureReviewResponse {
   format_type: string;
   section_format: string;
   report: string; // Changed from literature_review to report
+  literature_review?: string;
   timestamp: number;
+  format?: {
+    citation_style: string;
+  };
 }
 
 // Focused Report Interfaces

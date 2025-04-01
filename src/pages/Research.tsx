@@ -20,12 +20,7 @@ import {
   NumberDecrementStepper,
   Divider,
   Switch,
-  HStack,
-  Flex,
-  Badge,
   Progress,
-  List,
-  ListItem,
 } from '@chakra-ui/react'
 import { FaSearch } from 'react-icons/fa'
 import { 

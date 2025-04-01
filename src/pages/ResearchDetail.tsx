@@ -22,7 +22,6 @@ import {
   Tab,
   TabPanels,
   TabPanel,
-  Divider,
   Badge,
   Accordion,
   AccordionItem,
@@ -33,8 +32,8 @@ import {
   Tooltip,
   Flex,
 } from '@chakra-ui/react';
-import { FaArrowLeft, FaTrash, FaBookOpen, FaSearch } from 'react-icons/fa';
-import { getResearchById, deleteResearchById, ResearchResponse, generateLiteratureReview, generateFocusedReport } from '../api/researchApi';
+import { FaArrowLeft, FaTrash } from 'react-icons/fa';
+import { getResearchById, deleteResearchById, ResearchResponse } from '../api/researchApi';
 import ReactMarkdown from 'react-markdown';
 
 const ResearchDetail = () => {
@@ -91,16 +90,6 @@ const ResearchDetail = () => {
     }
   };
 
-  const handleGenerateLiteratureReview = () => {
-    if (!id) return;
-    navigate(`/literature-review/${id}`);
-  };
-
-  const handleGenerateFocusedReport = () => {
-    if (!id) return;
-    navigate(`/focused-report/${id}`);
-  };
-  
   const getSourceColor = (sourceType: string): string => {
     const colorMap: Record<string, string> = {
       'arxiv': 'teal',
@@ -346,25 +335,6 @@ const ResearchDetail = () => {
             <Heading as="h1" size="xl">
               {research.query}
             </Heading>
-
-            <Flex justifyContent="flex-end" gap={3}>
-              <Button 
-                leftIcon={<FaBookOpen />}
-                colorScheme="blue"
-                onClick={handleGenerateLiteratureReview}
-                size="sm"
-              >
-                Generate Literature Review
-              </Button>
-              <Button 
-                leftIcon={<FaSearch />}
-                colorScheme="green"
-                onClick={handleGenerateFocusedReport}
-                size="sm"
-              >
-                Generate Focused Report
-              </Button>
-            </Flex>
             
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
               <Stat>

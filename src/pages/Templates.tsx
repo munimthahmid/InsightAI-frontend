@@ -68,8 +68,9 @@ const Templates = () => {
       // Cast the templates to ExtendedTemplateResponse type
       setTemplates(response.templates as ExtendedTemplateResponse[]);
       
-      // Extract unique domains for filter
-      const uniqueDomains = [...new Set(response.templates.map(t => t.domain))];
+      // Extract unique domains for filter and filter out undefined values
+      const uniqueDomains = [...new Set(response.templates.map(t => t.domain))]
+        .filter((domain): domain is string => domain !== undefined);
       setDomains(uniqueDomains);
     } catch (error) {
       toast({
@@ -106,6 +107,18 @@ const Templates = () => {
         title: 'Error',
         description: 'Please enter a research query',
         status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    // Make sure we have a template_id
+    if (!selectedTemplate.template_id) {
+      toast({
+        title: 'Error',
+        description: 'Invalid template selected',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
